@@ -1,1 +1,152 @@
-# marsmelonek.github.io
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<title>Coal LLC 3D</title>
+<style>
+body { margin:0; overflow:hidden; background:black; }
+#ui {
+    position:absolute;
+    top:10px;
+    left:10px;
+    color:white;
+    font-family:Arial;
+}
+</style>
+</head>
+<body>
+
+<div id="ui">
+⛏️ Inventář uhlí: <span id="coal">0</span><br>
+💰 Peníze: <span id="money">0</span>$<br>
+📈 Cena uhlí: <span id="price">5</span>$<br>
+🔧 Nástroj: Krumpáč
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let mapSize = 20;
+let map = [];
+let coalInventory = 0;
+let money = 0;
+let coalPrice = 5;
+
+let player = { x: 2, y: 2, angle: 0 };
+let keys = {};
+
+document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+canvas.addEventListener("click", () => canvas.requestPointerLock());
+document.addEventListener("mousemove", e => {
+    if (document.pointerLockElement === canvas) {
+        player.angle += e.movementX * 0.002;
+    }
+});
+
+// Generování mapy
+for (let y=0;y<mapSize;y++){
+    let row=[];
+    for (let x=0;x<mapSize;x++){
+        if (Math.random() < 0.15) row.push(1); // uhlí
+        else row.push(0); // prázdno
+    }
+    map.push(row);
+}
+
+// Prodejní budova
+map[10][10] = 2;
+
+function updateUI(){
+    document.getElementById("coal").textContent = coalInventory;
+    document.getElementById("money").textContent = money;
+    document.getElementById("price").textContent = coalPrice;
+}
+
+function update(){
+    let speed = 0.05;
+    if(keys["w"]){
+        player.x += Math.cos(player.angle)*speed;
+        player.y += Math.sin(player.angle)*speed;
+    }
+    if(keys["s"]){
+        player.x -= Math.cos(player.angle)*speed;
+        player.y -= Math.sin(player.angle)*speed;
+    }
+
+    // Těžení
+    if(keys["e"]){
+        let tx = Math.floor(player.x + Math.cos(player.angle));
+        let ty = Math.floor(player.y + Math.sin(player.angle));
+        if(map[ty] && map[ty][tx] === 1){
+            map[ty][tx] = 0;
+            coalInventory++;
+            updateUI();
+        }
+    }
+
+    // Prodej
+    if(keys["f"]){
+        let px = Math.floor(player.x);
+        let py = Math.floor(player.y);
+        if(map[py] && map[py][px] === 2){
+            money += coalInventory * coalPrice;
+            coalInventory = 0;
+            coalPrice = 3 + Math.floor(Math.random()*8); // mění se cena
+            updateUI();
+        }
+    }
+}
+
+function draw(){
+    ctx.fillStyle="black";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    for(let x=0;x<canvas.width;x++){
+        let rayAngle = player.angle - Math.PI/6 + (x/canvas.width)*(Math.PI/3);
+        for(let depth=0;depth<20;depth+=0.05){
+            let rx = player.x + Math.cos(rayAngle)*depth;
+            let ry = player.y + Math.sin(rayAngle)*depth;
+
+            let mx = Math.floor(rx);
+            let my = Math.floor(ry);
+
+            if(map[my] && map[my][mx] > 0){
+                let wallHeight = canvas.height/(depth);
+                if(map[my][mx] === 1) ctx.fillStyle="gray"; // uhlí
+                if(map[my][mx] === 2) ctx.fillStyle="green"; // prodej
+                ctx.fillRect(x, canvas.height/2 - wallHeight/2, 1, wallHeight);
+                break;
+            }
+        }
+    }
+
+    // zaměřovač
+    ctx.strokeStyle="white";
+    ctx.beginPath();
+    ctx.moveTo(canvas.width/2-10,canvas.height/2);
+    ctx.lineTo(canvas.width/2+10,canvas.height/2);
+    ctx.moveTo(canvas.width/2,canvas.height/2-10);
+    ctx.lineTo(canvas.width/2,canvas.height/2+10);
+    ctx.stroke();
+}
+
+function loop(){
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+updateUI();
+loop();
+</script>
+
+</body>
+</html>
+
